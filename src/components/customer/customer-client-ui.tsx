@@ -19,20 +19,16 @@ interface CustomerClientUIProps {
 const ITEMS_PER_PAGE = 5;
 
 // Helper function to calculate months overdue
-const calculateMonthsOverdue = (nextPaymentDateStr: string | null | undefined): number => {
+const calculateMonthsOverdue = (nextPaymentDateStr: string | null | undefined, todayDate: Date): number => {
   if (!nextPaymentDateStr) return 0;
   const nextPaymentDate = startOfDay(new Date(nextPaymentDateStr));
-  const today = startOfDay(new Date());
+  // todayDate is already startOfDay
 
-  if (nextPaymentDate >= today) {
+  if (nextPaymentDate >= todayDate) {
     return 0; // Not overdue or due today/in future
   }
   
-  // differenceInMonths calculates full month differences.
-  // e.g., Jan 23 to Feb 23 is 1 month. Jan 23 to Feb 22 is 0 months.
-  // The user's example: "si el pago era el dia 23 de enero 2025 el dia de hoy [23 de mayo] tendria 4 meses"
-  // differenceInMonths(new Date(2025, 4, 23), new Date(2025, 0, 23)) = 4. This is correct.
-  return differenceInMonths(today, nextPaymentDate);
+  return differenceInMonths(todayDate, nextPaymentDate);
 };
 
 
@@ -44,26 +40,28 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [overdueFilter, setOverdueFilter] = useState<string>('all'); // 'all', 'ontime', '1', '2', '3plus'
   const { toast } = useToast();
+  const [clientToday, setClientToday] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setClientToday(startOfDay(new Date()));
+  }, []);
 
   const filteredCustomers = useMemo(() => {
-    let filtered = customers;
+    let filtered = customers.filter(customer =>
+      customer.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.license_plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.customer_id.includes(searchTerm)
+    );
 
-    if (searchTerm) {
-      filtered = filtered.filter(customer =>
-        customer.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.license_plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.customer_id.includes(searchTerm)
-      );
-    }
-
-    if (overdueFilter !== 'all') {
+    if (overdueFilter !== 'all' && clientToday) { // Only apply overdue filter if clientToday is set
       filtered = filtered.filter(customer => {
-        const monthsOverdue = calculateMonthsOverdue(customer.date_next_payment);
+        const monthsOverdue = calculateMonthsOverdue(customer.date_next_payment, clientToday);
         switch (overdueFilter) {
           case 'ontime':
-            return monthsOverdue <= 0 && customer.is_active; // Al día o próximo y activa
-          case 'due':
-            return monthsOverdue <= 0 && !customer.is_active; // Vencido pero inactivo (ej. pago futuro pero cuenta inactiva)
+            return monthsOverdue <= 0 && customer.is_active; 
+          case 'due': // This case seems to overlap/be confusing with 'ontime' or overdue. Re-evaluating its meaning.
+                      // Assuming 'due' might mean accounts whose next payment is near but are inactive.
+            return monthsOverdue <= 0 && !customer.is_active; 
           case '1':
             return monthsOverdue === 1 && customer.is_active;
           case '2':
@@ -78,7 +76,7 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
       });
     }
     return filtered;
-  }, [customers, searchTerm, overdueFilter]);
+  }, [customers, searchTerm, overdueFilter, clientToday]);
 
   const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
   
@@ -146,7 +144,7 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
             />
-            <Select value={overdueFilter} onValueChange={setOverdueFilter}>
+            <Select value={overdueFilter} onValueChange={setOverdueFilter} disabled={!clientToday}>
               <SelectTrigger className="max-w-sm">
                 <SelectValue placeholder="Filtrar por estado de pago" />
               </SelectTrigger>
@@ -165,13 +163,16 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
           <CustomerTable 
             customers={paginatedCustomers} 
             onViewDetails={handleViewDetails}
-            onToggleAccountStatus={handleToggleAccountStatus} 
+            onToggleAccountStatus={handleToggleAccountStatus}
+            clientToday={clientToday} 
           />
-          <PaginationControls
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
+          {paginatedCustomers.length > 0 && totalPages > 0 && (
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          )}
         </CardContent>
       </Card>
       <CustomerDetailModal

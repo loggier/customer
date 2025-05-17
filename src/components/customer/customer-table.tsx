@@ -15,17 +15,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Send, History } from 'lucide-react';
 import { format, differenceInMonths, startOfDay, isFuture, isEqual } from 'date-fns';
-// import { es } from 'date-fns/locale'; // Para formato de fecha en español
+import { es } from 'date-fns/locale'; // Para formato de fecha en español
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import React from 'react'; // useEffect, useState for client-side rendering
 
 interface CustomerTableProps {
   customers: Customer[];
   onViewDetails: (customer: Customer) => void;
   onToggleAccountStatus: (customerId: number) => void;
+  clientToday: Date | null; // To be passed from parent for consistent "today"
 }
 
-const OVERDUE_THRESHOLD_MONTHS_FOR_DEACTIVATION = 2; // Clientes activos con 2 o más meses vencidos pueden ser desactivados.
+const OVERDUE_THRESHOLD_MONTHS_FOR_DEACTIVATION = 2;
 
 interface OverdueStatus {
   monthsOverdue: number;
@@ -34,7 +36,12 @@ interface OverdueStatus {
   textColorClassName?: string;
 }
 
-const getOverdueStatus = (nextPaymentDateStr: string | null | undefined, isActive: boolean, nvPendings: number): OverdueStatus => {
+const getOverdueStatus = (
+  nextPaymentDateStr: string | null | undefined,
+  isActive: boolean,
+  nvPendings: number,
+  todayDate: Date // Use passed todayDate
+): OverdueStatus => {
   if (!isActive) {
     return { monthsOverdue: 0, label: 'Inactiva', variant: 'destructive' };
   }
@@ -43,11 +50,11 @@ const getOverdueStatus = (nextPaymentDateStr: string | null | undefined, isActiv
   }
 
   const nextPaymentDate = startOfDay(new Date(nextPaymentDateStr));
-  const today = startOfDay(new Date());
-  
+  // todayDate is already startOfDay from parent
+
   let monthsOverdue = 0;
-  if (nextPaymentDate < today) {
-    monthsOverdue = differenceInMonths(today, nextPaymentDate);
+  if (nextPaymentDate < todayDate) {
+    monthsOverdue = differenceInMonths(todayDate, nextPaymentDate);
   }
 
   let pendingLabel = "";
@@ -55,31 +62,26 @@ const getOverdueStatus = (nextPaymentDateStr: string | null | undefined, isActiv
     pendingLabel = ` (${nvPendings} pend.)`;
   }
 
-  if (monthsOverdue <= 0) { // Al día o futuro
-    if (isFuture(nextPaymentDate) || isEqual(nextPaymentDate, today)) {
+  if (monthsOverdue <= 0) {
+    if (isFuture(nextPaymentDate) || isEqual(nextPaymentDate, todayDate)) {
       return { monthsOverdue: 0, label: `Al día${pendingLabel}`, variant: 'default' };
     }
-    // Esto podría ser una fecha pasada pero que por alguna razón no calculó meses vencidos (ej. mismo mes)
-    // o una cuenta que se pagó y tiene fecha de pago futura.
-    // Por seguridad, si es estrictamente en el pasado y no 0 meses, lo tratamos como vencido.
-    // La lógica de monthsOverdue ya cubre esto, asi que 'Al día' es correcto aqui.
     return { monthsOverdue: 0, label: `Al día${pendingLabel}`, variant: 'default' };
   } else if (monthsOverdue === 1) {
     return { monthsOverdue, label: `1 mes venc.${pendingLabel}`, variant: 'outline', textColorClassName: 'text-amber-700 dark:text-amber-500' };
   } else if (monthsOverdue === 2) {
     return { monthsOverdue, label: `2 meses venc.${pendingLabel}`, variant: 'outline', textColorClassName: 'text-orange-700 dark:text-orange-500' };
-  } else { // 3+ meses
+  } else { 
     return { monthsOverdue, label: `${monthsOverdue} meses venc.${pendingLabel}`, variant: 'outline', textColorClassName: 'text-red-700 dark:text-red-600' };
   }
 };
 
 
-export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus }: CustomerTableProps) {
+export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus, clientToday }: CustomerTableProps) {
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
     try {
-      // return format(new Date(dateString), 'PP', { locale: es }); // Ejemplo con localización
-      return format(new Date(dateString), 'PP');
+      return format(new Date(dateString), 'PP', { locale: es });
     } catch (error) {
       return 'Fecha Inválida';
     }
@@ -88,7 +90,7 @@ export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus 
   const formatCurrency = (value: string | number) => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(numValue)) return 'N/A';
-    return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(numValue); // Ajustado a PEN
+    return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(numValue);
   }
 
   return (
@@ -108,32 +110,35 @@ export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus 
           {customers.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="h-24 text-center">
-                No se encontraron clientes con los filtros seleccionados.
+                {clientToday ? 'No se encontraron clientes con los filtros seleccionados.' : 'Cargando clientes...'}
               </TableCell>
             </TableRow>
           ) : (
             customers.map((customer) => {
-              const status = getOverdueStatus(customer.date_next_payment, customer.is_active, customer.nv_pendings);
-              const canBeDeactivated = customer.is_active && status.monthsOverdue >= OVERDUE_THRESHOLD_MONTHS_FOR_DEACTIVATION;
-              const switchDisabled = customer.is_active && !canBeDeactivated;
+              const status = clientToday ? getOverdueStatus(customer.date_next_payment, customer.is_active, customer.nv_pendings, clientToday) : null;
+              const canBeDeactivated = status ? customer.is_active && status.monthsOverdue >= OVERDUE_THRESHOLD_MONTHS_FOR_DEACTIVATION : false;
+              const switchDisabled = status ? customer.is_active && !canBeDeactivated : true; // Disable switch if status not calculated
 
               return (
                 <TableRow key={customer.id}>
                   <TableCell className="font-medium">{customer.customer_name}</TableCell>
                   <TableCell>{customer.license_plate}</TableCell>
-                  <TableCell>{formatDate(customer.date_next_payment)}</TableCell>
+                  <TableCell>{clientToday ? formatDate(customer.date_next_payment) : '...'}</TableCell>
                   <TableCell>{formatCurrency(customer.value)}</TableCell>
                   <TableCell>
-                    <Badge variant={status.variant} className={status.textColorClassName}>
-                      {status.label}
-                    </Badge>
+                    {status ? (
+                      <Badge variant={status.variant} className={status.textColorClassName}>
+                        {status.label}
+                      </Badge>
+                    ) : (
+                      '...'
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => onViewDetails(customer)} aria-label="Ver Detalles">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {/* AiInsightButton fue removido */}
                       <Button variant="ghost" size="icon" onClick={() => alert(`Acción: Enviar Recordatorio a ${customer.customer_name}`)} aria-label="Enviar Recordatorio">
                          <Send className="h-4 w-4" />
                       </Button>

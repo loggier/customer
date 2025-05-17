@@ -14,8 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
-// Consider adding locale for date-fns if full i18n is needed:
-// import { es } from 'date-fns/locale';
+import { es } from 'date-fns/locale'; // Importar locale
 
 interface CustomerDetailModalProps {
   customer: Customer | null;
@@ -40,8 +39,7 @@ export function CustomerDetailModal({ customer, isOpen, onClose }: CustomerDetai
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'No disponible';
     try {
-      // For full Spanish date formatting, pass locale: format(new Date(dateString), 'PPP p', { locale: es });
-      return format(new Date(dateString), 'PPP p');
+      return format(new Date(dateString), 'PPP p', { locale: es }); // Usar locale
     } catch (error) {
       return 'Fecha Inválida';
     }
@@ -50,7 +48,7 @@ export function CustomerDetailModal({ customer, isOpen, onClose }: CustomerDetai
   const formatCurrency = (value: string | number) => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(numValue)) return 'No disponible';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(numValue); // Adjust currency as needed
+    return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(numValue); // Ajustado a PEN
   }
 
   return (
