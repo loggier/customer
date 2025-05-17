@@ -2,7 +2,7 @@
 "use client";
 
 import type { Customer } from '@/types/customer';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useTransition } from 'react';
 import { CustomerTable } from './customer-table';
 import { PaginationControls } from './pagination-controls';
 import { CustomerDetailModal } from './customer-detail-modal';
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { differenceInMonths, startOfDay } from 'date-fns';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface CustomerClientUIProps {
   initialCustomers: Customer[];
@@ -44,6 +44,7 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   const { toast } = useToast();
   const [clientToday, setClientToday] = useState<Date | null>(null);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<number>>(new Set());
+  const [isUpdatingStatus, startUpdateTransition] = useTransition();
 
   useEffect(() => {
     setClientToday(startOfDay(new Date()));
@@ -142,7 +143,7 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   }, [filteredCustomers, selectedCustomerIds, areAllFilteredCustomersSelected]);
 
 
-  const updateSelectedCustomersStatus = (newStatus: boolean) => {
+  const updateSelectedCustomersStatus = async (newStatus: boolean) => {
     if (selectedCustomerIds.size === 0) {
       toast({
         title: "Ningún cliente seleccionado",
@@ -152,17 +153,69 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
       return;
     }
 
-    setCustomers(prevCustomers =>
-      prevCustomers.map(c =>
-        selectedCustomerIds.has(c.id) ? { ...c, is_active: newStatus } : c
-      )
-    );
+    const selectedPlates = customers
+      .filter(c => selectedCustomerIds.has(c.id))
+      .map(c => c.license_plate);
 
-    toast({
-      title: `Cuentas ${newStatus ? 'Activadas' : 'Desactivadas'}`,
-      description: `${selectedCustomerIds.size} cuenta(s) ha(n) sido ${newStatus ? 'activada(s)' : 'desactivada(s)'}.`,
+    if (selectedPlates.length === 0) {
+      toast({
+        title: "Error",
+        description: "No se encontraron las matrículas de los clientes seleccionados.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const platesParam = encodeURIComponent(selectedPlates.join(','));
+    const targetStatusParam = newStatus ? 'active' : 'inactive';
+    const apiUrl = `https://n8n.vemontech.com/webhook/d51389da-1775-4ead-a4f5-3dca196ee3fb?accion=by-plate&plate=${platesParam}&target_status=${targetStatusParam}`;
+
+    startUpdateTransition(async () => {
+      try {
+        const response = await fetch(apiUrl, { cache: 'no-store' });
+
+        if (!response.ok) {
+          let errorDetails = `Error del servidor: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            if (errorData && errorData.message) {
+              errorDetails = errorData.message;
+            } else if (errorData && typeof errorData === 'string') {
+              errorDetails = errorData;
+            } else if (errorData && errorData.error) { // Handle cases where error is in an "error" field
+              errorDetails = errorData.error;
+            }
+          } catch (jsonError) {
+            // Ignore if error response is not JSON or structured differently
+          }
+          throw new Error(errorDetails);
+        }
+
+        const result = await response.json();
+
+        if (result.success === true) { // Explicitly check for true
+          setCustomers(prevCustomers =>
+            prevCustomers.map(c =>
+              selectedCustomerIds.has(c.id) ? { ...c, is_active: newStatus } : c
+            )
+          );
+          toast({
+            title: `Cuentas ${newStatus ? 'Activadas' : 'Desactivadas'}`,
+            description: `${selectedPlates.length} cuenta(s) ha(n) sido ${newStatus ? 'activada(s)' : 'desactivada(s)'} exitosamente.`,
+          });
+          setSelectedCustomerIds(new Set()); // Clear selection
+        } else {
+          throw new Error(result.message || result.error || "El servidor indicó un fallo pero no proporcionó detalles específicos.");
+        }
+      } catch (error: any) {
+        console.error("Error updating customer status:", error);
+        toast({
+          title: "Error al actualizar estado",
+          description: (error.message && error.message.length < 150 ? error.message : "No se pudo completar la operación. Verifica la consola para más detalles o inténtalo de nuevo."),
+          variant: "destructive",
+        });
+      }
     });
-    setSelectedCustomerIds(new Set()); // Clear selection
   };
 
 
@@ -196,12 +249,20 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
           </div>
           {selectedCustomerIds.size > 0 && (
             <div className="mt-4 flex space-x-2">
-              <Button onClick={() => updateSelectedCustomersStatus(true)} variant="outline">
-                <CheckCircle className="mr-2 h-4 w-4" />
+              <Button 
+                onClick={() => updateSelectedCustomersStatus(true)} 
+                variant="outline"
+                disabled={isUpdatingStatus}
+              >
+                {isUpdatingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                 Activar Seleccionados ({selectedCustomerIds.size})
               </Button>
-              <Button onClick={() => updateSelectedCustomersStatus(false)} variant="outline">
-                <XCircle className="mr-2 h-4 w-4" />
+              <Button 
+                onClick={() => updateSelectedCustomersStatus(false)} 
+                variant="outline"
+                disabled={isUpdatingStatus}
+              >
+                 {isUpdatingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
                 Desactivar Seleccionados ({selectedCustomerIds.size})
               </Button>
             </div>
@@ -235,3 +296,6 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
     </div>
   );
 }
+
+
+    
