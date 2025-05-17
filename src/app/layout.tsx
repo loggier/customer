@@ -58,7 +58,7 @@ export default function RootLayout({
             <SidebarHeader className="p-4">
               <Link href="/" className="flex items-center space-x-2">
                 <LogoIcon className="h-8 w-8 text-sidebar-primary" />
-                <span className="font-semibold text-lg">Gestión de Clientes</span>
+                <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">Gestión de Clientes</span>
               </Link>
             </SidebarHeader>
             <SidebarContent>
@@ -80,9 +80,9 @@ export default function RootLayout({
               </SidebarMenu>
             </SidebarContent>
             <SidebarFooter className="mt-auto">
-               <div className="p-3 text-xs text-sidebar-foreground/70 flex items-center gap-2">
-                <CircleUser className="h-5 w-5" />
-                <div>
+               <div className="p-3 text-xs text-sidebar-foreground/70 flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+                <CircleUser className="h-5 w-5 flex-shrink-0" />
+                <div className="group-data-[collapsible=icon]:hidden">
                     <div>Usuario Ejemplo</div>
                     <div className="text-sidebar-foreground/50">info@ejemplo.com</div>
                 </div>
@@ -91,7 +91,7 @@ export default function RootLayout({
                 <SidebarMenuItem>
                   <SidebarMenuButton tooltip="Cerrar sesión (simulado)">
                     <LogOut className="h-5 w-5" />
-                    <span>Cerrar Sesión</span>
+                    <span className="group-data-[collapsible=icon]:hidden">Cerrar Sesión</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
