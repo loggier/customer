@@ -21,10 +21,10 @@ export function PaginationControls({ currentPage, totalPages, onPageChange }: Pa
         disabled={currentPage === 1}
       >
         <ChevronLeft className="h-4 w-4 mr-1" />
-        Previous
+        Anterior
       </Button>
       <span className="text-sm text-muted-foreground">
-        Page {currentPage} of {totalPages}
+        Página {currentPage} de {totalPages}
       </span>
       <Button
         variant="outline"
@@ -32,7 +32,7 @@ export function PaginationControls({ currentPage, totalPages, onPageChange }: Pa
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
       >
-        Next
+        Siguiente
         <ChevronRight className="h-4 w-4 ml-1" />
       </Button>
     </div>

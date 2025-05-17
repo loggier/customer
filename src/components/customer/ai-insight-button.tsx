@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Customer } from '@/types/customer';
@@ -45,7 +46,7 @@ export function AiInsightButton({ customer }: AiInsightButtonProps) {
         console.error("Failed to get AI insights:", error);
         toast({
           title: "Error",
-          description: "Failed to generate AI insights. Please try again.",
+          description: "No se pudieron generar las perspectivas de IA. Por favor, inténtalo de nuevo.",
           variant: "destructive",
         });
       }
@@ -59,14 +60,14 @@ export function AiInsightButton({ customer }: AiInsightButtonProps) {
         size="sm"
         onClick={handleGetInsight}
         disabled={isPending}
-        aria-label="Get AI Insights"
+        aria-label="Obtener Perspectivas de IA"
       >
         {isPending ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <Sparkles className="mr-2 h-4 w-4" />
         )}
-        Insights
+        Perspectivas
       </Button>
 
       {insight && (
@@ -75,14 +76,14 @@ export function AiInsightButton({ customer }: AiInsightButtonProps) {
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center">
                 <Sparkles className="mr-2 h-5 w-5 text-accent" />
-                AI Insights for {customer.customer_name}
+                Perspectivas de IA para {customer.customer_name}
               </AlertDialogTitle>
               <AlertDialogDescription>
                 {insight.keyInsights}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogAction onClick={() => setIsModalOpen(false)}>Got it!</AlertDialogAction>
+              <AlertDialogAction onClick={() => setIsModalOpen(false)}>¡Entendido!</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Customer Insights Viewer',
-  description: 'Manage and view customer insights.',
+  title: 'Visor de Perspectivas del Cliente',
+  description: 'Gestiona y visualiza las perspectivas de los clientes.',
 };
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased font-sans`}>
         <div className="relative flex min-h-screen flex-col">
           <Header />

@@ -8,7 +8,7 @@ export function Header() {
         <Link href="/" className="mr-6 flex items-center space-x-2">
           <LogoIcon className="h-6 w-6 text-primary" />
           <span className="font-bold sm:inline-block">
-            Customer Insights Viewer
+            Visor de Perspectivas del Cliente
           </span>
         </Link>
         {/* Add navigation or other header items here if needed */}

@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { AiInsightButton } from './ai-insight-button';
 import { Eye, Send, History } from 'lucide-react';
 import { format } from 'date-fns';
+// Consider adding locale for date-fns if full i18n is needed:
+// import { es } from 'date-fns/locale';
 
 interface CustomerTableProps {
   customers: Customer[];
@@ -22,19 +24,18 @@ interface CustomerTableProps {
 
 export function CustomerTable({ customers, onViewDetails }: CustomerTableProps) {
   const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return 'N/A'; // Or 'No disponible'
     try {
+      // For full Spanish date formatting, pass locale: format(new Date(dateString), 'PP', { locale: es });
       return format(new Date(dateString), 'PP');
     } catch (error) {
-      return 'Invalid Date';
+      return 'Fecha Inválida';
     }
   };
   
   const formatCurrency = (value: string | number) => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(numValue)) return 'N/A';
-    // Assuming value is in a local currency, adjust 'USD' and locale as needed.
-    // For example, for Peruvian Sol: new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' })
+    if (isNaN(numValue)) return 'N/A'; // Or 'No disponible'
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(numValue);
   }
 
@@ -44,19 +45,19 @@ export function CustomerTable({ customers, onViewDetails }: CustomerTableProps) 
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[250px]">Customer Name</TableHead>
-            <TableHead>License Plate</TableHead>
-            <TableHead>Next Payment</TableHead>
-            <TableHead>Value</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-center w-[300px]">Actions</TableHead>
+            <TableHead className="w-[250px]">Nombre del Cliente</TableHead>
+            <TableHead>Matrícula</TableHead>
+            <TableHead>Próximo Pago</TableHead>
+            <TableHead>Valor</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead className="text-center w-[300px]">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {customers.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="h-24 text-center">
-                No customers found.
+                No se encontraron clientes.
               </TableCell>
             </TableRow>
           ) : (
@@ -68,23 +69,23 @@ export function CustomerTable({ customers, onViewDetails }: CustomerTableProps) 
                 <TableCell>{formatCurrency(customer.value)}</TableCell>
                 <TableCell>
                   <Badge variant={new Date(customer.date_next_payment) < new Date() ? 'destructive' : 'default'}>
-                    {new Date(customer.date_next_payment) < new Date() ? 'Overdue' : 'Active'}
+                    {new Date(customer.date_next_payment) < new Date() ? 'Vencido' : 'Activo'}
                   </Badge>
                   {customer.nv_pendings > 0 && (
                     <Badge variant="outline" className="ml-2">
-                      {customer.nv_pendings} Pending
+                      {customer.nv_pendings} Pendiente
                     </Badge>
                   )}
                 </TableCell>
                 <TableCell className="text-center space-x-1">
-                  <Button variant="ghost" size="icon" onClick={() => onViewDetails(customer)} aria-label="View Details">
+                  <Button variant="ghost" size="icon" onClick={() => onViewDetails(customer)} aria-label="Ver Detalles">
                     <Eye className="h-4 w-4" />
                   </Button>
                   <AiInsightButton customer={customer} />
-                  <Button variant="ghost" size="icon" onClick={() => alert(`Action: Send Reminder to ${customer.customer_name}`)} aria-label="Send Reminder">
+                  <Button variant="ghost" size="icon" onClick={() => alert(`Acción: Enviar Recordatorio a ${customer.customer_name}`)} aria-label="Enviar Recordatorio">
                      <Send className="h-4 w-4" />
                   </Button>
-                   <Button variant="ghost" size="icon" onClick={() => alert(`Action: View History for ${customer.customer_name}`)} aria-label="View History">
+                   <Button variant="ghost" size="icon" onClick={() => alert(`Acción: Ver Historial para ${customer.customer_name}`)} aria-label="Ver Historial">
                      <History className="h-4 w-4" />
                   </Button>
                 </TableCell>

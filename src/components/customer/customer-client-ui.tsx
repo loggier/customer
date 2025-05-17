@@ -65,11 +65,11 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
     <div className="container mx-auto py-8 px-4 md:px-6 lg:px-8">
       <Card className="shadow-xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold">Customer Management</CardTitle>
+          <CardTitle className="text-2xl font-semibold">Gestión de Clientes</CardTitle>
            <div className="mt-4">
             <Input
               type="text"
-              placeholder="Search by name, license plate, or ID..."
+              placeholder="Buscar por nombre, matrícula o ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
