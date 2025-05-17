@@ -20,14 +20,14 @@ import { es } from 'date-fns/locale';
 import React from 'react';
 
 interface CustomerTableProps {
-  customers: Customer[];
+  customers: Customer[]; // These are paginated customers
   onViewDetails: (customer: Customer) => void;
   clientToday: Date | null;
-  selectedCustomerIds: number[];
+  selectedCustomerIds: Set<number>;
   onSelectCustomer: (customerId: number, isSelected: boolean) => void;
-  onSelectAllVisibleCustomers: (isSelected: boolean) => void;
-  areAllVisibleSelected: boolean;
-  isAnyVisibleSelected: boolean;
+  onSelectAllFilteredCustomers: (isSelected: boolean) => void;
+  areAllFilteredCustomersSelected: boolean;
+  isAnyFilteredCustomerSelected: boolean;
 }
 
 interface OverdueStatus {
@@ -44,7 +44,12 @@ const getOverdueStatus = (
   todayDate: Date 
 ): OverdueStatus => {
   if (!isActive) {
-    return { monthsOverdue: 0, label: 'Inactiva', variant: 'destructive' };
+    // If inactive, we might still want to show payment status if relevant,
+    // but the primary status is 'Inactiva'. For this label, we focus on payment.
+    // The 'Estado Cuenta' column will show 'Inactiva'.
+    // Let's assume for an inactive account, overdue status is less prominent or N/A.
+    // However, if we want to show it:
+    // return { monthsOverdue: 0, label: 'Inactiva', variant: 'destructive' };
   }
   if (!nextPaymentDateStr) {
     return { monthsOverdue: 0, label: 'Fecha Inválida', variant: 'outline' };
@@ -64,9 +69,11 @@ const getOverdueStatus = (
   }
 
   if (monthsOverdue <= 0) {
-    if (isFuture(nextPaymentDate) || isEqual(nextPaymentDate, todayDate) || differenceInMonths(todayDate, nextPaymentDate, {roundingMethod: 'floor'}) === 0 && nextPaymentDate < todayDate) {
+    // Covers payments due today, in the future, or paid within the current month but past due date
+     if (isFuture(nextPaymentDate) || isEqual(nextPaymentDate, todayDate) || (differenceInMonths(todayDate, nextPaymentDate, {roundingMethod: 'floor'}) === 0 && nextPaymentDate < todayDate)) {
        return { monthsOverdue: 0, label: `Al día${pendingLabel}`, variant: 'default' };
     }
+    // This case might be redundant if the above covers all non-overdue scenarios
     return { monthsOverdue: 0, label: `Al día${pendingLabel}`, variant: 'default' };
   } else if (monthsOverdue === 1) {
     return { monthsOverdue, label: `1 mes venc.${pendingLabel}`, variant: 'outline', textColorClassName: 'text-amber-700 dark:text-amber-500' };
@@ -84,9 +91,9 @@ export function CustomerTable({
   clientToday,
   selectedCustomerIds,
   onSelectCustomer,
-  onSelectAllVisibleCustomers,
-  areAllVisibleSelected,
-  isAnyVisibleSelected
+  onSelectAllFilteredCustomers,
+  areAllFilteredCustomersSelected,
+  isAnyFilteredCustomerSelected
 }: CustomerTableProps) {
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
@@ -104,10 +111,21 @@ export function CustomerTable({
   }
 
   const handleSelectAllChange = (checked: boolean | 'indeterminate') => {
-    if (typeof checked === 'boolean') {
-      onSelectAllVisibleCustomers(checked);
+    // The 'indeterminate' state from Checkbox means it was clicked while indeterminate.
+    // We interpret this as wanting to select all if it wasn't fully selected,
+    // or deselect all if it was.
+    if (areAllFilteredCustomersSelected) {
+      onSelectAllFilteredCustomers(false);
+    } else {
+      onSelectAllFilteredCustomers(true);
     }
   };
+  
+  const masterCheckboxState = areAllFilteredCustomersSelected
+    ? true
+    : isAnyFilteredCustomerSelected
+    ? 'indeterminate'
+    : false;
 
   return (
     <div className="rounded-lg border shadow-sm overflow-hidden">
@@ -116,9 +134,9 @@ export function CustomerTable({
           <TableRow>
             <TableHead className="w-[50px] text-center">
               <Checkbox
-                checked={areAllVisibleSelected || isAnyVisibleSelected ? (areAllVisibleSelected ? true : 'indeterminate') : false}
+                checked={masterCheckboxState}
                 onCheckedChange={handleSelectAllChange}
-                aria-label="Seleccionar todos los clientes visibles"
+                aria-label="Seleccionar todos los clientes filtrados"
                 disabled={customers.length === 0 || !clientToday}
               />
             </TableHead>
@@ -126,7 +144,7 @@ export function CustomerTable({
             <TableHead>Matrícula</TableHead>
             <TableHead>Próximo Pago</TableHead>
             <TableHead>Valor</TableHead>
-            <TableHead className="w-[180px]">Estado Cuenta</TableHead>
+            <TableHead className="w-[150px]">Estado Cuenta</TableHead>
             <TableHead className="w-[180px]">Estado Pago</TableHead>
             <TableHead className="text-center w-[100px]">Acciones</TableHead>
           </TableRow>
@@ -141,7 +159,7 @@ export function CustomerTable({
           ) : (
             customers.map((customer) => {
               const paymentStatus = clientToday ? getOverdueStatus(customer.date_next_payment, customer.is_active, customer.nv_pendings, clientToday) : null;
-              const isSelected = selectedCustomerIds.includes(customer.id);
+              const isSelected = selectedCustomerIds.has(customer.id);
 
               return (
                 <TableRow key={customer.id} data-state={isSelected ? "selected" : ""}>
@@ -163,12 +181,14 @@ export function CustomerTable({
                       </Badge>
                   </TableCell>
                   <TableCell>
-                    {paymentStatus ? (
+                    {paymentStatus && customer.is_active ? ( // Only show payment status if account is active
                       <Badge variant={paymentStatus.variant} className={paymentStatus.textColorClassName}>
                         {paymentStatus.label}
                       </Badge>
-                    ) : (
+                    ) : customer.is_active ? ( // Active but payment status is loading
                       '...'
+                    ) : ( // Inactive account, don't show payment status badge or use a specific one
+                       <Badge variant={'outline'}>N/A</Badge> // Or some other indication
                     )}
                   </TableCell>
                   <TableCell className="text-center">

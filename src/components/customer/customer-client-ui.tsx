@@ -43,7 +43,7 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   const [overdueFilter, setOverdueFilter] = useState<string>('all'); 
   const { toast } = useToast();
   const [clientToday, setClientToday] = useState<Date | null>(null);
-  const [selectedCustomerIds, setSelectedCustomerIds] = useState<number[]>([]);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     setClientToday(startOfDay(new Date()));
@@ -107,42 +107,43 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   
   useEffect(() => {
     setCurrentPage(1); 
-    setSelectedCustomerIds([]); // Clear selection when filter or search term changes
+    setSelectedCustomerIds(new Set()); // Clear selection when filter or search term changes
   }, [searchTerm, overdueFilter]);
 
   const handleToggleSelectCustomer = (customerId: number, isSelected: boolean) => {
     setSelectedCustomerIds(prevSelectedIds => {
+      const newSelectedIds = new Set(prevSelectedIds);
       if (isSelected) {
-        return [...prevSelectedIds, customerId];
+        newSelectedIds.add(customerId);
       } else {
-        return prevSelectedIds.filter(id => id !== customerId);
+        newSelectedIds.delete(customerId);
       }
+      return newSelectedIds;
     });
   };
 
-  const handleToggleSelectAllVisibleCustomers = (isSelected: boolean) => {
+  const handleToggleSelectAllFilteredCustomers = (isSelected: boolean) => {
     if (isSelected) {
-      const allVisibleIds = paginatedCustomers.map(c => c.id);
-      setSelectedCustomerIds(Array.from(new Set([...selectedCustomerIds, ...allVisibleIds])));
+      const allFilteredIds = filteredCustomers.map(c => c.id);
+      setSelectedCustomerIds(new Set(allFilteredIds));
     } else {
-      const visibleCustomerIds = paginatedCustomers.map(c => c.id);
-      setSelectedCustomerIds(selectedCustomerIds.filter(id => !visibleCustomerIds.includes(id)));
+      setSelectedCustomerIds(new Set());
     }
   };
+  
+  const areAllFilteredCustomersSelected = useMemo(() => {
+    if (filteredCustomers.length === 0) return false;
+    return filteredCustomers.every(c => selectedCustomerIds.has(c.id));
+  }, [filteredCustomers, selectedCustomerIds]);
 
-  const areAllVisibleSelected = useMemo(() => {
-    if (paginatedCustomers.length === 0) return false;
-    return paginatedCustomers.every(c => selectedCustomerIds.includes(c.id));
-  }, [paginatedCustomers, selectedCustomerIds]);
-
-  const isAnyVisibleSelected = useMemo(() => {
-     if (paginatedCustomers.length === 0) return false;
-    return paginatedCustomers.some(c => selectedCustomerIds.includes(c.id)) && !areAllVisibleSelected;
-  }, [paginatedCustomers, selectedCustomerIds, areAllVisibleSelected]);
+  const isAnyFilteredCustomerSelected = useMemo(() => {
+    if (filteredCustomers.length === 0 || selectedCustomerIds.size === 0) return false;
+    return !areAllFilteredCustomersSelected && filteredCustomers.some(c => selectedCustomerIds.has(c.id));
+  }, [filteredCustomers, selectedCustomerIds, areAllFilteredCustomersSelected]);
 
 
   const updateSelectedCustomersStatus = (newStatus: boolean) => {
-    if (selectedCustomerIds.length === 0) {
+    if (selectedCustomerIds.size === 0) {
       toast({
         title: "Ningún cliente seleccionado",
         description: "Por favor, selecciona al menos un cliente.",
@@ -153,15 +154,15 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
 
     setCustomers(prevCustomers =>
       prevCustomers.map(c =>
-        selectedCustomerIds.includes(c.id) ? { ...c, is_active: newStatus } : c
+        selectedCustomerIds.has(c.id) ? { ...c, is_active: newStatus } : c
       )
     );
 
     toast({
       title: `Cuentas ${newStatus ? 'Activadas' : 'Desactivadas'}`,
-      description: `${selectedCustomerIds.length} cuenta(s) ha(n) sido ${newStatus ? 'activada(s)' : 'desactivada(s)'}.`,
+      description: `${selectedCustomerIds.size} cuenta(s) ha(n) sido ${newStatus ? 'activada(s)' : 'desactivada(s)'}.`,
     });
-    setSelectedCustomerIds([]); // Clear selection
+    setSelectedCustomerIds(new Set()); // Clear selection
   };
 
 
@@ -193,15 +194,15 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
               </SelectContent>
             </Select>
           </div>
-          {selectedCustomerIds.length > 0 && (
+          {selectedCustomerIds.size > 0 && (
             <div className="mt-4 flex space-x-2">
               <Button onClick={() => updateSelectedCustomersStatus(true)} variant="outline">
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Activar Seleccionados ({selectedCustomerIds.length})
+                Activar Seleccionados ({selectedCustomerIds.size})
               </Button>
               <Button onClick={() => updateSelectedCustomersStatus(false)} variant="outline">
                 <XCircle className="mr-2 h-4 w-4" />
-                Desactivar Seleccionados ({selectedCustomerIds.length})
+                Desactivar Seleccionados ({selectedCustomerIds.size})
               </Button>
             </div>
           )}
@@ -213,9 +214,9 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
             clientToday={clientToday}
             selectedCustomerIds={selectedCustomerIds}
             onSelectCustomer={handleToggleSelectCustomer}
-            onSelectAllVisibleCustomers={handleToggleSelectAllVisibleCustomers}
-            areAllVisibleSelected={areAllVisibleSelected}
-            isAnyVisibleSelected={isAnyVisibleSelected}
+            onSelectAllFilteredCustomers={handleToggleSelectAllFilteredCustomers}
+            areAllFilteredCustomersSelected={areAllFilteredCustomersSelected}
+            isAnyFilteredCustomerSelected={isAnyFilteredCustomerSelected}
           />
           {paginatedCustomers.length > 0 && totalPages > 0 && (
             <PaginationControls
