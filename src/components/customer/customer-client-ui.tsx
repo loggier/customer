@@ -7,10 +7,12 @@ import { CustomerTable } from './customer-table';
 import { PaginationControls } from './pagination-controls';
 import { CustomerDetailModal } from './customer-detail-modal';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { differenceInMonths, startOfDay } from 'date-fns';
+import { CheckCircle, XCircle } from 'lucide-react';
 
 interface CustomerClientUIProps {
   initialCustomers: Customer[];
@@ -38,9 +40,10 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [overdueFilter, setOverdueFilter] = useState<string>('all'); // 'all', 'ontime', '1', '2', '3plus'
+  const [overdueFilter, setOverdueFilter] = useState<string>('all'); 
   const { toast } = useToast();
   const [clientToday, setClientToday] = useState<Date | null>(null);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<number[]>([]);
 
   useEffect(() => {
     setClientToday(startOfDay(new Date()));
@@ -53,14 +56,13 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
       customer.customer_id.includes(searchTerm)
     );
 
-    if (overdueFilter !== 'all' && clientToday) { // Only apply overdue filter if clientToday is set
+    if (overdueFilter !== 'all' && clientToday) { 
       filtered = filtered.filter(customer => {
         const monthsOverdue = calculateMonthsOverdue(customer.date_next_payment, clientToday);
         switch (overdueFilter) {
           case 'ontime':
             return monthsOverdue <= 0 && customer.is_active; 
-          case 'due': // This case seems to overlap/be confusing with 'ontime' or overdue. Re-evaluating its meaning.
-                      // Assuming 'due' might mean accounts whose next payment is near but are inactive.
+          case 'due': 
             return monthsOverdue <= 0 && !customer.is_active; 
           case '1':
             return monthsOverdue === 1 && customer.is_active;
@@ -104,34 +106,67 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   };
   
   useEffect(() => {
-    setCurrentPage(1); // Reset to first page when search term or filter changes
+    setCurrentPage(1); 
+    setSelectedCustomerIds([]); // Clear selection when filter or search term changes
   }, [searchTerm, overdueFilter]);
 
-  const handleToggleAccountStatus = (customerId: number) => {
-    let customerName = "";
-    let wasActive = false;
+  const handleToggleSelectCustomer = (customerId: number, isSelected: boolean) => {
+    setSelectedCustomerIds(prevSelectedIds => {
+      if (isSelected) {
+        return [...prevSelectedIds, customerId];
+      } else {
+        return prevSelectedIds.filter(id => id !== customerId);
+      }
+    });
+  };
 
-    setCustomers(prevCustomers =>
-      prevCustomers.map(c => {
-        if (c.id === customerId) {
-          customerName = c.customer_name;
-          wasActive = c.is_active;
-          return { ...c, is_active: !c.is_active };
-        }
-        return c;
-      })
-    );
-
-    if (customerName) {
-      toast({
-        title: "Estado de Cuenta Actualizado",
-        description: `La cuenta de ${customerName} ha sido ${!wasActive ? 'activada' : 'desactivada'}.`,
-      });
+  const handleToggleSelectAllVisibleCustomers = (isSelected: boolean) => {
+    if (isSelected) {
+      const allVisibleIds = paginatedCustomers.map(c => c.id);
+      setSelectedCustomerIds(Array.from(new Set([...selectedCustomerIds, ...allVisibleIds])));
+    } else {
+      const visibleCustomerIds = paginatedCustomers.map(c => c.id);
+      setSelectedCustomerIds(selectedCustomerIds.filter(id => !visibleCustomerIds.includes(id)));
     }
   };
 
+  const areAllVisibleSelected = useMemo(() => {
+    if (paginatedCustomers.length === 0) return false;
+    return paginatedCustomers.every(c => selectedCustomerIds.includes(c.id));
+  }, [paginatedCustomers, selectedCustomerIds]);
+
+  const isAnyVisibleSelected = useMemo(() => {
+     if (paginatedCustomers.length === 0) return false;
+    return paginatedCustomers.some(c => selectedCustomerIds.includes(c.id)) && !areAllVisibleSelected;
+  }, [paginatedCustomers, selectedCustomerIds, areAllVisibleSelected]);
+
+
+  const updateSelectedCustomersStatus = (newStatus: boolean) => {
+    if (selectedCustomerIds.length === 0) {
+      toast({
+        title: "Ningún cliente seleccionado",
+        description: "Por favor, selecciona al menos un cliente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCustomers(prevCustomers =>
+      prevCustomers.map(c =>
+        selectedCustomerIds.includes(c.id) ? { ...c, is_active: newStatus } : c
+      )
+    );
+
+    toast({
+      title: `Cuentas ${newStatus ? 'Activadas' : 'Desactivadas'}`,
+      description: `${selectedCustomerIds.length} cuenta(s) ha(n) sido ${newStatus ? 'activada(s)' : 'desactivada(s)'}.`,
+    });
+    setSelectedCustomerIds([]); // Clear selection
+  };
+
+
   return (
-    <div className="w-full mx-auto py-8 px-4 sm:px-6 lg:px-8"> {/* Ajustado para mayor amplitud */}
+    <div className="w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-semibold">Gestión de Clientes</CardTitle>
@@ -158,13 +193,29 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
               </SelectContent>
             </Select>
           </div>
+          {selectedCustomerIds.length > 0 && (
+            <div className="mt-4 flex space-x-2">
+              <Button onClick={() => updateSelectedCustomersStatus(true)} variant="outline">
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Activar Seleccionados ({selectedCustomerIds.length})
+              </Button>
+              <Button onClick={() => updateSelectedCustomersStatus(false)} variant="outline">
+                <XCircle className="mr-2 h-4 w-4" />
+                Desactivar Seleccionados ({selectedCustomerIds.length})
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <CustomerTable 
             customers={paginatedCustomers} 
             onViewDetails={handleViewDetails}
-            onToggleAccountStatus={handleToggleAccountStatus}
-            clientToday={clientToday} 
+            clientToday={clientToday}
+            selectedCustomerIds={selectedCustomerIds}
+            onSelectCustomer={handleToggleSelectCustomer}
+            onSelectAllVisibleCustomers={handleToggleSelectAllVisibleCustomers}
+            areAllVisibleSelected={areAllVisibleSelected}
+            isAnyVisibleSelected={isAnyVisibleSelected}
           />
           {paginatedCustomers.length > 0 && totalPages > 0 && (
             <PaginationControls

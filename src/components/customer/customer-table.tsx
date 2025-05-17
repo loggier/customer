@@ -2,7 +2,7 @@
 "use client";
 
 import type { Customer } from '@/types/customer';
-import type { BadgeProps } from '@/components/ui/badge'; // Import BadgeProps for variant typing
+import type { BadgeProps } from '@/components/ui/badge'; 
 import {
   Table,
   TableBody,
@@ -13,18 +13,21 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Eye } from 'lucide-react';
 import { format, differenceInMonths, startOfDay, isFuture, isEqual } from 'date-fns';
-import { es } from 'date-fns/locale'; // Para formato de fecha en español
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import React from 'react'; // useEffect, useState for client-side rendering
+import { es } from 'date-fns/locale'; 
+import React from 'react';
 
 interface CustomerTableProps {
   customers: Customer[];
   onViewDetails: (customer: Customer) => void;
-  onToggleAccountStatus: (customerId: number) => void;
-  clientToday: Date | null; // To be passed from parent for consistent "today"
+  clientToday: Date | null;
+  selectedCustomerIds: number[];
+  onSelectCustomer: (customerId: number, isSelected: boolean) => void;
+  onSelectAllVisibleCustomers: (isSelected: boolean) => void;
+  areAllVisibleSelected: boolean;
+  isAnyVisibleSelected: boolean;
 }
 
 interface OverdueStatus {
@@ -38,7 +41,7 @@ const getOverdueStatus = (
   nextPaymentDateStr: string | null | undefined,
   isActive: boolean,
   nvPendings: number,
-  todayDate: Date // Use passed todayDate
+  todayDate: Date 
 ): OverdueStatus => {
   if (!isActive) {
     return { monthsOverdue: 0, label: 'Inactiva', variant: 'destructive' };
@@ -61,12 +64,9 @@ const getOverdueStatus = (
   }
 
   if (monthsOverdue <= 0) {
-    // Handles cases where payment is today, in the future, or even slightly in the past but within the same month.
-    // differenceInMonths will be 0 if it's not a full month overdue.
     if (isFuture(nextPaymentDate) || isEqual(nextPaymentDate, todayDate) || differenceInMonths(todayDate, nextPaymentDate, {roundingMethod: 'floor'}) === 0 && nextPaymentDate < todayDate) {
        return { monthsOverdue: 0, label: `Al día${pendingLabel}`, variant: 'default' };
     }
-    // This case should ideally not be hit if logic is correct above, but as a fallback for "current month".
     return { monthsOverdue: 0, label: `Al día${pendingLabel}`, variant: 'default' };
   } else if (monthsOverdue === 1) {
     return { monthsOverdue, label: `1 mes venc.${pendingLabel}`, variant: 'outline', textColorClassName: 'text-amber-700 dark:text-amber-500' };
@@ -78,7 +78,16 @@ const getOverdueStatus = (
 };
 
 
-export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus, clientToday }: CustomerTableProps) {
+export function CustomerTable({ 
+  customers, 
+  onViewDetails, 
+  clientToday,
+  selectedCustomerIds,
+  onSelectCustomer,
+  onSelectAllVisibleCustomers,
+  areAllVisibleSelected,
+  isAnyVisibleSelected
+}: CustomerTableProps) {
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
     try {
@@ -94,65 +103,78 @@ export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus,
     return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(numValue);
   }
 
+  const handleSelectAllChange = (checked: boolean | 'indeterminate') => {
+    if (typeof checked === 'boolean') {
+      onSelectAllVisibleCustomers(checked);
+    }
+  };
+
   return (
     <div className="rounded-lg border shadow-sm overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[50px] text-center">
+              <Checkbox
+                checked={areAllVisibleSelected || isAnyVisibleSelected ? (areAllVisibleSelected ? true : 'indeterminate') : false}
+                onCheckedChange={handleSelectAllChange}
+                aria-label="Seleccionar todos los clientes visibles"
+                disabled={customers.length === 0 || !clientToday}
+              />
+            </TableHead>
             <TableHead className="w-[250px]">Nombre del Cliente</TableHead>
             <TableHead>Matrícula</TableHead>
             <TableHead>Próximo Pago</TableHead>
             <TableHead>Valor</TableHead>
-            <TableHead className="w-[180px]">Estado</TableHead>
-            <TableHead className="text-center w-[220px]">Acciones</TableHead>
+            <TableHead className="w-[180px]">Estado Cuenta</TableHead>
+            <TableHead className="w-[180px]">Estado Pago</TableHead>
+            <TableHead className="text-center w-[100px]">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {customers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center">
+              <TableCell colSpan={8} className="h-24 text-center">
                 {clientToday ? 'No se encontraron clientes con los filtros seleccionados.' : 'Cargando clientes...'}
               </TableCell>
             </TableRow>
           ) : (
             customers.map((customer) => {
-              const status = clientToday ? getOverdueStatus(customer.date_next_payment, customer.is_active, customer.nv_pendings, clientToday) : null;
-              // Switch is disabled only if the status hasn't been calculated yet (i.e., clientToday is not set)
-              const switchDisabled = !status; 
+              const paymentStatus = clientToday ? getOverdueStatus(customer.date_next_payment, customer.is_active, customer.nv_pendings, clientToday) : null;
+              const isSelected = selectedCustomerIds.includes(customer.id);
 
               return (
-                <TableRow key={customer.id}>
+                <TableRow key={customer.id} data-state={isSelected ? "selected" : ""}>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => onSelectCustomer(customer.id, !!checked)}
+                      aria-label={`Seleccionar cliente ${customer.customer_name}`}
+                      disabled={!clientToday}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{customer.customer_name}</TableCell>
                   <TableCell>{customer.license_plate}</TableCell>
                   <TableCell>{clientToday ? formatDate(customer.date_next_payment) : '...'}</TableCell>
                   <TableCell>{formatCurrency(customer.value)}</TableCell>
                   <TableCell>
-                    {status ? (
-                      <Badge variant={status.variant} className={status.textColorClassName}>
-                        {status.label}
+                     <Badge variant={customer.is_active ? 'default' : 'destructive'}>
+                        {customer.is_active ? 'Activa' : 'Inactiva'}
+                      </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {paymentStatus ? (
+                      <Badge variant={paymentStatus.variant} className={paymentStatus.textColorClassName}>
+                        {paymentStatus.label}
                       </Badge>
                     ) : (
                       '...'
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex items-center justify-center space-x-2">
-                      <Button variant="ghost" size="icon" onClick={() => onViewDetails(customer)} aria-label="Ver Detalles">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <div className="flex items-center space-x-1">
-                        <Switch
-                          id={`toggle-active-${customer.id}`}
-                          checked={customer.is_active}
-                          onCheckedChange={() => onToggleAccountStatus(customer.id)}
-                          disabled={switchDisabled}
-                          aria-label={customer.is_active ? "Desactivar cuenta" : "Activar cuenta"}
-                        />
-                        <Label htmlFor={`toggle-active-${customer.id}`} className={`text-xs cursor-pointer select-none ${switchDisabled ? 'text-muted-foreground' : ''}`}>
-                          {customer.is_active ? "Activa" : "Inactiva"}
-                        </Label>
-                      </div>
-                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => onViewDetails(customer)} aria-label="Ver Detalles">
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               );
@@ -163,4 +185,3 @@ export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus,
     </div>
   );
 }
-
