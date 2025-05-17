@@ -1,21 +1,41 @@
 import type { Customer } from '@/types/customer';
 
+// Helper para crear fechas relativas al día de hoy
+const monthsAgo = (months: number): string => {
+  const date = new Date();
+  date.setMonth(date.getMonth() - months);
+  return date.toISOString();
+};
+
+const daysAgo = (days: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString();
+}
+
+const daysFuture = (days: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
+}
+
+
 export const mockCustomers: Customer[] = [
   {
     id: 399,
     customer_name: "CHOQUEHUANCA NUÑEZ ROCIO MILAGROS",
     customer_id: "191",
     license_plate: "X4V-928",
-    date_init: "2025-03-30T22:00:00.000Z",
-    date_next_payment: "2026-03-30T22:00:00.000Z",
+    date_init: "2023-03-30T22:00:00.000Z",
+    date_next_payment: daysFuture(30), // Vence en 30 días
     type_period: "year",
     count_period: 1,
     value: "432",
     total: 0,
     apply_notyfication: 1,
     phones: "[\"981900200\"]",
-    created_at: "2025-04-30T10:34:26.000Z",
-    updated_at: "2025-04-30T10:34:26.000Z",
+    created_at: "2023-04-30T10:34:26.000Z",
+    updated_at: "2023-04-30T10:34:26.000Z",
     nv_pendings: 0,
     is_active: true,
   },
@@ -24,18 +44,18 @@ export const mockCustomers: Customer[] = [
     customer_name: "PEREZ GONZALES JUAN CARLOS",
     customer_id: "205",
     license_plate: "A1B-123",
-    date_init: "2024-01-15T10:00:00.000Z",
-    date_next_payment: "2024-01-15T10:00:00.000Z", // Vencido significativamente
+    date_init: "2023-01-15T10:00:00.000Z",
+    date_next_payment: monthsAgo(4), // Vencido hace 4 meses
     type_period: "year",
     count_period: 1,
     value: "500",
     total: 0,
     apply_notyfication: 1,
     phones: "[\"999888777\", \"911222333\"]",
-    created_at: "2024-01-10T09:20:15.000Z",
-    updated_at: "2024-06-01T11:45:00.000Z",
+    created_at: "2023-01-10T09:20:15.000Z",
+    updated_at: "2023-06-01T11:45:00.000Z",
     nv_pendings: 2,
-    is_active: false, // Inicia inactivo por estar vencido
+    is_active: true, // Inicia activo, aunque esté vencido
   },
   {
     id: 401,
@@ -43,7 +63,7 @@ export const mockCustomers: Customer[] = [
     customer_id: "310",
     license_plate: "C2D-456",
     date_init: "2024-07-01T14:30:00.000Z",
-    date_next_payment: "2024-08-01T14:30:00.000Z", // Próximo a vencer o al día (depende de fecha actual)
+    date_next_payment: monthsAgo(1), // Vencido hace 1 mes
     type_period: "month",
     count_period: 1,
     value: "150",
@@ -61,7 +81,7 @@ export const mockCustomers: Customer[] = [
     customer_id: "415",
     license_plate: "E3F-789",
     date_init: "2023-11-10T08:00:00.000Z",
-    date_next_payment: "2023-11-10T08:00:00.000Z", // Muy vencido
+    date_next_payment: monthsAgo(8), // Vencido hace 8 meses
     type_period: "year",
     count_period: 1,
     value: "380",
@@ -79,7 +99,7 @@ export const mockCustomers: Customer[] = [
     customer_id: "520",
     license_plate: "G4H-012",
     date_init: "2024-02-20T16:00:00.000Z",
-    date_next_payment: "2025-02-20T16:00:00.000Z", // No vencido
+    date_next_payment: daysFuture(90), // Vence en 90 días
     type_period: "year",
     count_period: 1,
     value: "600",
@@ -97,7 +117,7 @@ export const mockCustomers: Customer[] = [
     customer_id: "625",
     license_plate: "I5J-345",
     date_init: "2024-08-05T11:00:00.000Z",
-    date_next_payment: "2024-09-05T11:00:00.000Z", // Próximo a vencer o al día
+    date_next_payment: monthsAgo(2), // Vencido hace 2 meses
     type_period: "month",
     count_period: 1,
     value: "120",
@@ -107,6 +127,24 @@ export const mockCustomers: Customer[] = [
     created_at: "2024-07-30T14:20:00.000Z",
     updated_at: "2024-07-30T14:20:00.000Z",
     nv_pendings: 0,
+    is_active: true,
+  },
+  {
+    id: 405,
+    customer_name: "QUISPE LIMA SANDRA PATRICIA",
+    customer_id: "730",
+    license_plate: "K6L-678",
+    date_init: "2024-01-10T09:00:00.000Z",
+    date_next_payment: daysAgo(15), // Vencido hace 15 días (0 meses completos)
+    type_period: "month",
+    count_period: 1,
+    value: "100",
+    total: 0,
+    apply_notyfication: 1,
+    phones: "[\"922111000\"]",
+    created_at: "2024-01-05T10:00:00.000Z",
+    updated_at: "2024-01-05T10:00:00.000Z",
+    nv_pendings: 1,
     is_active: true,
   }
 ];

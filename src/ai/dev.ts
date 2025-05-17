@@ -1,4 +1,5 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/customer-insights.ts';
+// No flows are currently active by default.
+// import '@/ai/flows/customer-insights.ts';
