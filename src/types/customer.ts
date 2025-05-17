@@ -15,6 +15,7 @@ export interface Customer {
   created_at: string;
   updated_at: string;
   nv_pendings: number;
+  is_active: boolean; // Nuevo campo para el estado de la cuenta
 }
 
 export interface ApiResponse {

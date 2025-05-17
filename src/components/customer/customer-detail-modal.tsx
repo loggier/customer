@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Customer } from '@/types/customer';
@@ -63,6 +64,12 @@ export function CustomerDetailModal({ customer, isOpen, onClose }: CustomerDetai
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-6">
           <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 items-center gap-4">
+              <span className="font-semibold">Estado de Cuenta:</span>
+              <Badge variant={customer.is_active ? 'default' : 'destructive'}>
+                {customer.is_active ? 'Activa' : 'Inactiva'}
+              </Badge>
+            </div>
             <div className="grid grid-cols-2 items-center gap-4">
               <span className="font-semibold">Fecha de Inicio:</span>
               <span>{formatDate(customer.date_init)}</span>

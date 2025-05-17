@@ -16,7 +16,8 @@ export const mockCustomers: Customer[] = [
     phones: "[\"981900200\"]",
     created_at: "2025-04-30T10:34:26.000Z",
     updated_at: "2025-04-30T10:34:26.000Z",
-    nv_pendings: 0
+    nv_pendings: 0,
+    is_active: true,
   },
   {
     id: 400,
@@ -24,7 +25,7 @@ export const mockCustomers: Customer[] = [
     customer_id: "205",
     license_plate: "A1B-123",
     date_init: "2024-01-15T10:00:00.000Z",
-    date_next_payment: "2025-01-15T10:00:00.000Z",
+    date_next_payment: "2024-01-15T10:00:00.000Z", // Vencido significativamente
     type_period: "year",
     count_period: 1,
     value: "500",
@@ -33,7 +34,8 @@ export const mockCustomers: Customer[] = [
     phones: "[\"999888777\", \"911222333\"]",
     created_at: "2024-01-10T09:20:15.000Z",
     updated_at: "2024-06-01T11:45:00.000Z",
-    nv_pendings: 2
+    nv_pendings: 2,
+    is_active: false, // Inicia inactivo por estar vencido
   },
   {
     id: 401,
@@ -41,7 +43,7 @@ export const mockCustomers: Customer[] = [
     customer_id: "310",
     license_plate: "C2D-456",
     date_init: "2024-07-01T14:30:00.000Z",
-    date_next_payment: "2024-08-01T14:30:00.000Z",
+    date_next_payment: "2024-08-01T14:30:00.000Z", // Próximo a vencer o al día (depende de fecha actual)
     type_period: "month",
     count_period: 1,
     value: "150",
@@ -50,7 +52,8 @@ export const mockCustomers: Customer[] = [
     phones: "[\"977666555\"]",
     created_at: "2024-06-25T18:00:42.000Z",
     updated_at: "2024-06-25T18:00:42.000Z",
-    nv_pendings: 0
+    nv_pendings: 0,
+    is_active: true,
   },
   {
     id: 402,
@@ -58,7 +61,7 @@ export const mockCustomers: Customer[] = [
     customer_id: "415",
     license_plate: "E3F-789",
     date_init: "2023-11-10T08:00:00.000Z",
-    date_next_payment: "2024-11-10T08:00:00.000Z",
+    date_next_payment: "2023-11-10T08:00:00.000Z", // Muy vencido
     type_period: "year",
     count_period: 1,
     value: "380",
@@ -67,15 +70,16 @@ export const mockCustomers: Customer[] = [
     phones: "[\"966555444\"]",
     created_at: "2023-11-05T12:10:55.000Z",
     updated_at: "2024-05-15T16:30:20.000Z",
-    nv_pendings: 1
+    nv_pendings: 1,
+    is_active: false, // Inicia inactivo por estar muy vencido
   },
-    {
+  {
     id: 403,
     customer_name: "GUTIERREZ FLORES MARIA ELENA",
     customer_id: "520",
     license_plate: "G4H-012",
     date_init: "2024-02-20T16:00:00.000Z",
-    date_next_payment: "2025-02-20T16:00:00.000Z",
+    date_next_payment: "2025-02-20T16:00:00.000Z", // No vencido
     type_period: "year",
     count_period: 1,
     value: "600",
@@ -84,7 +88,8 @@ export const mockCustomers: Customer[] = [
     phones: "[\"955444333\", \"944333222\"]",
     created_at: "2024-02-15T10:05:30.000Z",
     updated_at: "2024-02-15T10:05:30.000Z",
-    nv_pendings: 0
+    nv_pendings: 0,
+    is_active: true,
   },
   {
     id: 404,
@@ -92,7 +97,7 @@ export const mockCustomers: Customer[] = [
     customer_id: "625",
     license_plate: "I5J-345",
     date_init: "2024-08-05T11:00:00.000Z",
-    date_next_payment: "2024-09-05T11:00:00.000Z",
+    date_next_payment: "2024-09-05T11:00:00.000Z", // Próximo a vencer o al día
     type_period: "month",
     count_period: 1,
     value: "120",
@@ -101,7 +106,8 @@ export const mockCustomers: Customer[] = [
     phones: "[\"933222111\"]",
     created_at: "2024-07-30T14:20:00.000Z",
     updated_at: "2024-07-30T14:20:00.000Z",
-    nv_pendings: 0
+    nv_pendings: 0,
+    is_active: true,
   }
 ];
 

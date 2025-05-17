@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Customer } from '@/types/customer';
@@ -7,6 +8,7 @@ import { PaginationControls } from './pagination-controls';
 import { CustomerDetailModal } from './customer-detail-modal';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from "@/hooks/use-toast";
 
 interface CustomerClientUIProps {
   initialCustomers: Customer[];
@@ -20,6 +22,7 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const { toast } = useToast();
 
   const filteredCustomers = useMemo(() => {
     if (!searchTerm) return customers;
@@ -55,11 +58,32 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
     }
   };
   
-  // Reset to page 1 when search term changes
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
+  const handleToggleAccountStatus = (customerId: number) => {
+    let customerName = "";
+    let wasActive = false;
+
+    setCustomers(prevCustomers =>
+      prevCustomers.map(c => {
+        if (c.id === customerId) {
+          customerName = c.customer_name;
+          wasActive = c.is_active;
+          return { ...c, is_active: !c.is_active };
+        }
+        return c;
+      })
+    );
+
+    if (customerName) {
+      toast({
+        title: "Estado de Cuenta Actualizado",
+        description: `La cuenta de ${customerName} ha sido ${!wasActive ? 'activada' : 'desactivada'}.`,
+      });
+    }
+  };
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-6 lg:px-8">
@@ -77,7 +101,11 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <CustomerTable customers={paginatedCustomers} onViewDetails={handleViewDetails} />
+          <CustomerTable 
+            customers={paginatedCustomers} 
+            onViewDetails={handleViewDetails}
+            onToggleAccountStatus={handleToggleAccountStatus} 
+          />
           <PaginationControls
             currentPage={currentPage}
             totalPages={totalPages}
