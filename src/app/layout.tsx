@@ -64,16 +64,16 @@ export default function RootLayout({
             <SidebarContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <Link href="/" passHref>
-                    <SidebarMenuButton 
-                      asChild 
+                  <Link href="/" passHref legacyBehavior>
+                    <SidebarMenuButton
+                      asChild
                       isActive={pathname === '/'}
                       tooltip="Ver lista de clientes"
                     >
-                      <>
+                      <a>
                         <List className="h-5 w-5" />
                         <span>Lista de Cliente</span>
-                      </>
+                      </a>
                     </SidebarMenuButton>
                   </Link>
                 </SidebarMenuItem>
