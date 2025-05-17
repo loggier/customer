@@ -131,7 +131,7 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 md:px-6 lg:px-8">
+    <div className="w-full mx-auto py-8 px-4 sm:px-6 lg:px-8"> {/* Ajustado para mayor amplitud */}
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-semibold">Gestión de Clientes</CardTitle>
