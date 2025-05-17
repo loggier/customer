@@ -27,8 +27,6 @@ interface CustomerTableProps {
   clientToday: Date | null; // To be passed from parent for consistent "today"
 }
 
-const OVERDUE_THRESHOLD_MONTHS_FOR_DEACTIVATION = 2;
-
 interface OverdueStatus {
   monthsOverdue: number;
   label: string;
@@ -63,9 +61,12 @@ const getOverdueStatus = (
   }
 
   if (monthsOverdue <= 0) {
-    if (isFuture(nextPaymentDate) || isEqual(nextPaymentDate, todayDate)) {
-      return { monthsOverdue: 0, label: `Al día${pendingLabel}`, variant: 'default' };
+    // Handles cases where payment is today, in the future, or even slightly in the past but within the same month.
+    // differenceInMonths will be 0 if it's not a full month overdue.
+    if (isFuture(nextPaymentDate) || isEqual(nextPaymentDate, todayDate) || differenceInMonths(todayDate, nextPaymentDate, {roundingMethod: 'floor'}) === 0 && nextPaymentDate < todayDate) {
+       return { monthsOverdue: 0, label: `Al día${pendingLabel}`, variant: 'default' };
     }
+    // This case should ideally not be hit if logic is correct above, but as a fallback for "current month".
     return { monthsOverdue: 0, label: `Al día${pendingLabel}`, variant: 'default' };
   } else if (monthsOverdue === 1) {
     return { monthsOverdue, label: `1 mes venc.${pendingLabel}`, variant: 'outline', textColorClassName: 'text-amber-700 dark:text-amber-500' };
@@ -116,8 +117,8 @@ export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus,
           ) : (
             customers.map((customer) => {
               const status = clientToday ? getOverdueStatus(customer.date_next_payment, customer.is_active, customer.nv_pendings, clientToday) : null;
-              const canBeDeactivated = status ? customer.is_active && status.monthsOverdue >= OVERDUE_THRESHOLD_MONTHS_FOR_DEACTIVATION : false;
-              const switchDisabled = status ? customer.is_active && !canBeDeactivated : true; // Disable switch if status not calculated
+              // Switch is disabled only if the status hasn't been calculated yet (i.e., clientToday is not set)
+              const switchDisabled = !status; 
 
               return (
                 <TableRow key={customer.id}>
@@ -162,3 +163,4 @@ export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus,
     </div>
   );
 }
+
