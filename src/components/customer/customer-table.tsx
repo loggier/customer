@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Send, History } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { format, differenceInMonths, startOfDay, isFuture, isEqual } from 'date-fns';
 import { es } from 'date-fns/locale'; // Para formato de fecha en español
 import { Switch } from "@/components/ui/switch";
@@ -102,8 +102,8 @@ export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus,
             <TableHead>Matrícula</TableHead>
             <TableHead>Próximo Pago</TableHead>
             <TableHead>Valor</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-center w-[380px]">Acciones</TableHead>
+            <TableHead className="w-[180px]">Estado</TableHead>
+            <TableHead className="text-center w-[220px]">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -135,17 +135,11 @@ export function CustomerTable({ customers, onViewDetails, onToggleAccountStatus,
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex items-center justify-center space-x-1">
+                    <div className="flex items-center justify-center space-x-2">
                       <Button variant="ghost" size="icon" onClick={() => onViewDetails(customer)} aria-label="Ver Detalles">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => alert(`Acción: Enviar Recordatorio a ${customer.customer_name}`)} aria-label="Enviar Recordatorio">
-                         <Send className="h-4 w-4" />
-                      </Button>
-                       <Button variant="ghost" size="icon" onClick={() => alert(`Acción: Ver Historial para ${customer.customer_name}`)} aria-label="Ver Historial">
-                         <History className="h-4 w-4" />
-                      </Button>
-                      <div className="flex items-center space-x-1 pl-2 border-l ml-1">
+                      <div className="flex items-center space-x-1">
                         <Switch
                           id={`toggle-active-${customer.id}`}
                           checked={customer.is_active}
