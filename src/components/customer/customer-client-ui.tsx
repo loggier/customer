@@ -108,7 +108,7 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   
   useEffect(() => {
     setCurrentPage(1); 
-    setSelectedCustomerIds(new Set()); // Clear selection when filter or search term changes
+    setSelectedCustomerIds(new Set()); 
   }, [searchTerm, overdueFilter]);
 
   const handleToggleSelectCustomer = (customerId: number, isSelected: boolean) => {
@@ -139,8 +139,10 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
 
   const isAnyFilteredCustomerSelected = useMemo(() => {
     if (filteredCustomers.length === 0 || selectedCustomerIds.size === 0) return false;
-    return !areAllFilteredCustomersSelected && filteredCustomers.some(c => selectedCustomerIds.has(c.id));
-  }, [filteredCustomers, selectedCustomerIds, areAllFilteredCustomersSelected]);
+    // Check if some (but not all) filtered customers are selected
+    const selectedCountInFiltered = filteredCustomers.filter(c => selectedCustomerIds.has(c.id)).length;
+    return selectedCountInFiltered > 0 && selectedCountInFiltered < filteredCustomers.length;
+  }, [filteredCustomers, selectedCustomerIds]);
 
 
   const updateSelectedCustomersStatus = async (newStatus: boolean) => {
@@ -178,35 +180,61 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
           let errorDetails = `Error del servidor: ${response.status}`;
           try {
             const errorData = await response.json();
-            if (errorData && errorData.message) {
-              errorDetails = errorData.message;
-            } else if (errorData && typeof errorData === 'string') {
-              errorDetails = errorData;
-            } else if (errorData && errorData.error) { // Handle cases where error is in an "error" field
-              errorDetails = errorData.error;
-            }
+            errorDetails = errorData.message || errorData.error || JSON.stringify(errorData);
           } catch (jsonError) {
-            // Ignore if error response is not JSON or structured differently
+            // Ignore if error response is not JSON
           }
           throw new Error(errorDetails);
         }
 
         const result = await response.json();
+        
+        const successfullyUpdatedPlates: string[] = result.success && Array.isArray(result.success) ? result.success : [];
+        const failedToUpdatePlates: string[] = result.error && Array.isArray(result.error) ? result.error : [];
 
-        if (result.success === true) { // Explicitly check for true
+        if (successfullyUpdatedPlates.length > 0) {
           setCustomers(prevCustomers =>
             prevCustomers.map(c =>
-              selectedCustomerIds.has(c.id) ? { ...c, is_active: newStatus } : c
+              successfullyUpdatedPlates.includes(c.license_plate)
+                ? { ...c, is_active: newStatus }
+                : c
             )
           );
-          toast({
-            title: `Cuentas ${newStatus ? 'Activadas' : 'Desactivadas'}`,
-            description: `${selectedPlates.length} cuenta(s) ha(n) sido ${newStatus ? 'activada(s)' : 'desactivada(s)'} exitosamente.`,
-          });
-          setSelectedCustomerIds(new Set()); // Clear selection
-        } else {
-          throw new Error(result.message || result.error || "El servidor indicó un fallo pero no proporcionó detalles específicos.");
         }
+
+        let toastTitle = "";
+        let toastDescription = "";
+        let toastVariant: "default" | "destructive" = "default";
+
+        if (successfullyUpdatedPlates.length > 0 && failedToUpdatePlates.length === 0) {
+          toastTitle = `Cuentas ${newStatus ? 'Activadas' : 'Desactivadas'}`;
+          toastDescription = `${successfullyUpdatedPlates.length} cuenta(s) ${newStatus ? 'activada(s)' : 'desactivada(s)'} exitosamente: ${successfullyUpdatedPlates.join(', ')}.`;
+        } else if (successfullyUpdatedPlates.length === 0 && failedToUpdatePlates.length > 0) {
+          toastTitle = "Error al Actualizar Cuentas";
+          toastDescription = `No se pudo(ieron) actualizar ${failedToUpdatePlates.length} cuenta(s): ${failedToUpdatePlates.join(', ')}.`;
+          toastVariant = "destructive";
+        } else if (successfullyUpdatedPlates.length > 0 && failedToUpdatePlates.length > 0) {
+          toastTitle = "Actualización Parcial";
+          toastDescription = `Éxito (${successfullyUpdatedPlates.length}): ${successfullyUpdatedPlates.join(', ')} ${newStatus ? 'activada(s)' : 'desactivada(s)'}. Fallo (${failedToUpdatePlates.length}): ${failedToUpdatePlates.join(', ')} no se pudo(ieron) actualizar.`;
+        } else if (result.success === false && result.message) { // Handle old generic error format or API specific error message
+            toastTitle = "Error de API";
+            toastDescription = result.message;
+            toastVariant = "destructive";
+        } else { // No specific plates updated, no specific error message
+          toastTitle = "Sin Cambios Efectuados";
+          toastDescription = "La operación no afectó a ninguna de las cuentas seleccionadas o la API no devolvió detalles específicos.";
+          toastVariant = "default"; 
+        }
+        
+        toast({
+          title: toastTitle,
+          description: toastDescription.trim(),
+          variant: toastVariant,
+          duration: 7000, // Longer duration for potentially complex messages
+        });
+
+        setSelectedCustomerIds(new Set()); // Clear selection after operation
+
       } catch (error: any) {
         console.error("Error updating customer status:", error);
         toast({
@@ -296,6 +324,4 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
     </div>
   );
 }
-
-
     
