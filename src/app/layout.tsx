@@ -58,7 +58,7 @@ export default function RootLayout({
             <SidebarHeader className="p-4">
               <Link href="/" className="flex items-center space-x-2">
                 <LogoIcon className="h-8 w-8 text-sidebar-primary" />
-                <span className="font-semibold text-lg">Visor Clientes</span>
+                <span className="font-semibold text-lg">Gestión de Clientes</span>
               </Link>
             </SidebarHeader>
             <SidebarContent>
