@@ -1,4 +1,6 @@
 
+export const dynamic = 'force-dynamic';
+
 import type { Customer, ApiResponse } from '@/types/customer';
 import { CustomerClientUI } from '@/components/customer/customer-client-ui';
 
