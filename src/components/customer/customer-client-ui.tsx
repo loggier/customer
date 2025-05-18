@@ -3,6 +3,7 @@
 
 import type { Customer } from '@/types/customer';
 import React, { useState, useMemo, useEffect, useTransition } from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter
 import { CustomerTable } from './customer-table';
 import { PaginationControls } from './pagination-controls';
 import { CustomerDetailModal } from './customer-detail-modal';
@@ -12,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { differenceInMonths, startOfDay } from 'date-fns';
-import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react'; // Import RefreshCw
 
 interface CustomerClientUIProps {
   initialCustomers: Customer[];
@@ -44,11 +45,20 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
   const { toast } = useToast();
   const [clientToday, setClientToday] = useState<Date | null>(null);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<number>>(new Set());
-  const [isUpdatingStatus, startUpdateTransition] = useTransition();
+  const [isBatchUpdatingStatus, startBatchUpdateTransition] = useTransition();
+  const [isRefreshingList, startRefreshTransition] = useTransition(); // New transition for refreshing
+  const router = useRouter(); // useRouter hook
 
   useEffect(() => {
     setClientToday(startOfDay(new Date()));
   }, []);
+
+  useEffect(() => {
+    setCustomers(initialCustomers);
+    // Reset pagination and selection when initialCustomers change (e.g., after refresh)
+    setCurrentPage(1);
+    setSelectedCustomerIds(new Set());
+  }, [initialCustomers]);
 
   const filteredCustomers = useMemo(() => {
     let filtered = customers.filter(customer =>
@@ -125,8 +135,8 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
 
   const handleToggleSelectAllFilteredCustomers = (isSelected: boolean) => {
     if (isSelected) {
-      const allFilteredIds = filteredCustomers.map(c => c.id);
-      setSelectedCustomerIds(new Set(allFilteredIds));
+      const allFilteredIds = new Set(filteredCustomers.map(c => c.id));
+      setSelectedCustomerIds(allFilteredIds);
     } else {
       setSelectedCustomerIds(new Set());
     }
@@ -139,7 +149,6 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
 
   const isAnyFilteredCustomerSelected = useMemo(() => {
     if (filteredCustomers.length === 0 || selectedCustomerIds.size === 0) return false;
-    // Check if some (but not all) filtered customers are selected
     const selectedCountInFiltered = filteredCustomers.filter(c => selectedCustomerIds.has(c.id)).length;
     return selectedCountInFiltered > 0 && selectedCountInFiltered < filteredCustomers.length;
   }, [filteredCustomers, selectedCustomerIds]);
@@ -172,7 +181,7 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
     const targetStatusParam = newStatus ? 'active' : 'inactive';
     const apiUrl = `https://n8n.vemontech.com/webhook/d51389da-1775-4ead-a4f5-3dca196ee3fb?accion=by-plate&plate=${platesParam}&target_status=${targetStatusParam}`;
 
-    startUpdateTransition(async () => {
+    startBatchUpdateTransition(async () => {
       try {
         const response = await fetch(apiUrl, { cache: 'no-store' });
 
@@ -216,11 +225,11 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
         } else if (successfullyUpdatedPlates.length > 0 && failedToUpdatePlates.length > 0) {
           toastTitle = "Actualización Parcial";
           toastDescription = `Éxito (${successfullyUpdatedPlates.length}): ${successfullyUpdatedPlates.join(', ')} ${newStatus ? 'activada(s)' : 'desactivada(s)'}. Fallo (${failedToUpdatePlates.length}): ${failedToUpdatePlates.join(', ')} no se pudo(ieron) actualizar.`;
-        } else if (result.success === false && result.message) { // Handle old generic error format or API specific error message
+        } else if (result.success === false && result.message) {
             toastTitle = "Error de API";
             toastDescription = result.message;
             toastVariant = "destructive";
-        } else { // No specific plates updated, no specific error message
+        } else { 
           toastTitle = "Sin Cambios Efectuados";
           toastDescription = "La operación no afectó a ninguna de las cuentas seleccionadas o la API no devolvió detalles específicos.";
           toastVariant = "default"; 
@@ -230,10 +239,10 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
           title: toastTitle,
           description: toastDescription.trim(),
           variant: toastVariant,
-          duration: 7000, // Longer duration for potentially complex messages
+          duration: 7000,
         });
 
-        setSelectedCustomerIds(new Set()); // Clear selection after operation
+        setSelectedCustomerIds(new Set());
 
       } catch (error: any) {
         console.error("Error updating customer status:", error);
@@ -246,6 +255,15 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
     });
   };
 
+  const handleRefreshCustomers = () => {
+    startRefreshTransition(() => {
+      router.refresh();
+      // Optionally, show a toast that refresh has started
+      // toast({ title: "Actualizando lista...", description: "Obteniendo los datos más recientes."});
+      // A success/error toast for the refresh itself is harder here as router.refresh() doesn't return a promise
+      // that resolves when the data is fully loaded and UI updated. The loading state on the button is the primary feedback.
+    });
+  };
 
   return (
     <div className="w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -253,44 +271,59 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
         <CardHeader>
           <CardTitle className="text-2xl font-semibold">Gestión de Clientes</CardTitle>
           <CardDescription>Filtra y gestiona los clientes y el estado de sus pagos.</CardDescription>
-           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              type="text"
-              placeholder="Buscar por nombre, matrícula o ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
-            <Select value={overdueFilter} onValueChange={setOverdueFilter} disabled={!clientToday}>
-              <SelectTrigger className="max-w-sm">
-                <SelectValue placeholder="Filtrar por estado de pago" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los Clientes</SelectItem>
-                <SelectItem value="ontime">Al día o Próximo Vencimiento (Activas)</SelectItem>
-                <SelectItem value="1">1 Mes Vencido (Activas)</SelectItem>
-                <SelectItem value="2">2 Meses Vencidos (Activas)</SelectItem>
-                <SelectItem value="3plus">3+ Meses Vencidos (Activas)</SelectItem>
-                <SelectItem value="inactive">Cuentas Inactivas</SelectItem>
-              </SelectContent>
-            </Select>
+           <div className="mt-4 flex flex-col md:flex-row flex-wrap items-end gap-4">
+            <div className="flex-grow md:max-w-sm min-w-[200px]">
+              <Input
+                type="text"
+                placeholder="Buscar por nombre, matrícula o ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="flex-grow md:max-w-sm min-w-[200px]">
+              <Select value={overdueFilter} onValueChange={setOverdueFilter} disabled={!clientToday}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filtrar por estado de pago" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los Clientes</SelectItem>
+                  <SelectItem value="ontime">Al día o Próximo Vencimiento (Activas)</SelectItem>
+                  <SelectItem value="1">1 Mes Vencido (Activas)</SelectItem>
+                  <SelectItem value="2">2 Meses Vencidos (Activas)</SelectItem>
+                  <SelectItem value="3plus">3+ Meses Vencidos (Activas)</SelectItem>
+                  <SelectItem value="inactive">Cuentas Inactivas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Button 
+                onClick={handleRefreshCustomers}
+                variant="outline"
+                disabled={isRefreshingList || !clientToday}
+                aria-label="Actualizar lista de clientes"
+              >
+                {isRefreshingList ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Actualizar
+              </Button>
+            </div>
           </div>
           {selectedCustomerIds.size > 0 && (
             <div className="mt-4 flex space-x-2">
               <Button 
                 onClick={() => updateSelectedCustomersStatus(true)} 
                 variant="outline"
-                disabled={isUpdatingStatus}
+                disabled={isBatchUpdatingStatus}
               >
-                {isUpdatingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                {isBatchUpdatingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                 Activar Seleccionados ({selectedCustomerIds.size})
               </Button>
               <Button 
                 onClick={() => updateSelectedCustomersStatus(false)} 
                 variant="outline"
-                disabled={isUpdatingStatus}
+                disabled={isBatchUpdatingStatus}
               >
-                 {isUpdatingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                 {isBatchUpdatingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
                 Desactivar Seleccionados ({selectedCustomerIds.size})
               </Button>
             </div>
@@ -324,4 +357,6 @@ export function CustomerClientUI({ initialCustomers }: CustomerClientUIProps) {
     </div>
   );
 }
+    
+
     
